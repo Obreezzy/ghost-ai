@@ -12,6 +12,7 @@ interface ProjectSidebarProps {
   className?: string
 }
 
+/** Renders project navigation and empty states in a collapsible sidebar. */
 export function ProjectSidebar({ isOpen, onClose, className }: ProjectSidebarProps) {
   return (
     <aside
@@ -75,6 +76,7 @@ interface SidebarEmptyStateProps {
   description: string
 }
 
+/** Displays a message and icon when a project tab has no entries. */
 function SidebarEmptyState({ icon, title, description }: SidebarEmptyStateProps) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">

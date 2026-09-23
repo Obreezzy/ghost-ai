@@ -11,6 +11,7 @@ interface EditorNavbarProps {
   className?: string
 }
 
+/** Renders the editor header with a control for toggling the project sidebar. */
 export function EditorNavbar({
   sidebarOpen,
   onToggleSidebar,

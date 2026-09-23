@@ -17,6 +17,7 @@ export const metadata: Metadata = {
   description: "Real-time collaborative system design workspace",
 };
 
+/** Renders the shared document shell and global font and color styles. */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html

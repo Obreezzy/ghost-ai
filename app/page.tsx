@@ -5,6 +5,7 @@ import { useState } from "react"
 import { EditorNavbar } from "@/components/editor/editor-navbar"
 import { ProjectSidebar } from "@/components/editor/project-sidebar"
 
+/** Renders the editor workspace and controls project sidebar visibility. */
 export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
