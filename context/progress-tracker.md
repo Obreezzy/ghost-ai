@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Canvas Workspace (next editor unit)
+- 04-project-dialogs.md (in progress)
 
 ## Current Goal
 
-- Build the project card/canvas workspace on top of the protected editor chrome
+- Build the editor home and project dialogs/sidebar actions with mock data only
 
 ## Completed
 
@@ -44,14 +44,21 @@ Update this file whenever the current phase, active feature, or implementation s
   - Verified: `tsc --noEmit` clean, `eslint` clean on new files (only the 2 pre-existing foundation errors remain), `npm run build` passes (Proxy detected, routes `/`, `/editor`, `/sign-in`, `/sign-up`), dev-render checks: `/` → 307 to `/sign-in`, `/editor` → 307 to `/sign-in?redirect_url=...`, `/sign-in` and `/sign-up` → 200
    - Resolved the root route merge conflict: `app/page.tsx` now keeps the auth-based redirect, while editor chrome remains in `app/editor/page.tsx`.
    - Added `/sign-in` and `/sign-up` fallbacks to the Clerk public-route matcher when deployment environment variables are unset.
+- Fixed the still-valid generated UI lint issue by changing the empty `InputProps` and `TextareaProps` interfaces to exported type aliases preserving the same HTML attribute contracts.
+- Added the Tailwind v4 class-based dark variant in `app/globals.css` via `@custom-variant dark` so `dark:*` utilities follow the app's `.dark` root class instead of device preference.
+- Intentionally skipped the requested ESLint override because it would keep the empty-object lint problem in place and contradict the actual fix.
 
 ## In Progress
 
-- None
+- 04-project-dialogs.md
+  - Reuse the existing editor chrome
+  - Add the editor home content and Create Project dialog
+  - Add owned-project rename/delete actions and mobile sidebar dismissal
+  - Keep project data local and mock-only
 
 ## Next Up
 
-- Canvas workspace (project cards, project detail/canvas route)
+- Complete and verify 04-project-dialogs.md
 
 ## Open Questions
 
@@ -63,7 +70,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 - Tailwind v4: shadcn tokens are exposed by mapping the HSL custom properties in globals.css to Tailwind color tokens via `@theme inline`. The v3-style `tailwind.config.ts` is not loaded by Tailwind v4 and is no longer the source of truth for color utilities.
 - Editor chrome floats over the canvas: sidebar uses fixed positioning (top-14, not pushing page content), navbar is a fixed h-14 header mounted above the workspace.
-- New Project button, tab triggers, and sidebar close button are present but intentionally non-functional; card/canvas pages wire them up in later chapters.
+- New Project, owned-project rename/delete, and mobile outside-tap actions are wired to the local `04-project-dialogs` mock state; no API or persistence is added.
 - Route protection uses Next.js 16 `proxy.ts` (formerly `middleware.ts`) with `clerkMiddleware`, protected-first: only `/` and the sign-in/sign-up env paths are public.
 - Clerk appearance: `dark` base theme from `@clerk/ui/themes` with color variables mapped to the app's shadcn HSL tokens wrapped in `hsl()` (the raw tokens are HSL triplets; utilities use the same pattern, e.g. `.bg-background { background-color: hsl(var(--background)) }`). No hardcoded hex values in app code.
 - Auth pages live in an `app/(auth)` route group so they share a two-panel layout without adding a URL segment; public routes stay `/sign-in` and `/sign-up`.
