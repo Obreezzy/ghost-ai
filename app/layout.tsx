@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
+import { dark } from "@clerk/ui/themes";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,11 +22,32 @@ export const metadata: Metadata = {
 /** Renders the shared document shell and global font and color styles. */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+    <ClerkProvider
+      appearance={{
+        theme: dark,
+        variables: {
+          colorBackground: "hsl(var(--background))",
+          colorForeground: "hsl(var(--foreground))",
+          colorInput: "hsl(var(--input))",
+          colorInputForeground: "hsl(var(--foreground))",
+          colorMuted: "hsl(var(--muted))",
+          colorMutedForeground: "hsl(var(--muted-foreground))",
+          colorPrimary: "hsl(var(--primary))",
+          colorPrimaryForeground: "hsl(var(--primary-foreground))",
+          colorBorder: "hsl(var(--input))",
+          colorDanger: "hsl(var(--destructive))",
+          colorRing: "hsl(var(--ring))",
+          fontFamily:
+            "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif",
+        },
+      }}
     >
-      <body className="min-h-full bg-background text-foreground">{children}</body>
-    </html>
+      <html
+        lang="en"
+        className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      >
+        <body className="min-h-full bg-background text-foreground">{children}</body>
+      </html>
+    </ClerkProvider>
   );
 }
