@@ -11,7 +11,8 @@ import type { Project } from "@/types/project"
 interface ProjectSidebarProps {
   isOpen: boolean
   onClose: () => void
-  projects: Project[]
+  ownedProjects: Project[]
+  sharedProjects: Project[]
   onCreateProject: () => void
   onRenameProject: (project: Project) => void
   onDeleteProject: (project: Project) => void
@@ -21,15 +22,13 @@ interface ProjectSidebarProps {
 export function ProjectSidebar({
   isOpen,
   onClose,
-  projects,
+  ownedProjects,
+  sharedProjects,
   onCreateProject,
   onRenameProject,
   onDeleteProject,
   className,
 }: ProjectSidebarProps) {
-  const ownedProjects = projects.filter((project) => project.role === "owner")
-  const sharedProjects = projects.filter((project) => project.role === "collaborator")
-
   return (
     <>
       {isOpen ? (

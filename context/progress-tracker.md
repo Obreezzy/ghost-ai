@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- 05-prisma.md (in progress)
+- 07-wire-editor-home.md (completed)
 
 ## Current Goal
 
-- Add project metadata models and configure Prisma 7 correctly for migrations
+- Wire the editor home sidebar and dialogs to the real project API and verify the project data flow works end-to-end
 
 ## Completed
 
@@ -47,31 +47,46 @@ Update this file whenever the current phase, active feature, or implementation s
 - Fixed the still-valid generated UI lint issue by changing the empty `InputProps` and `TextareaProps` interfaces to exported type aliases preserving the same HTML attribute contracts.
 - Added the Tailwind v4 class-based dark variant in `app/globals.css` via `@custom-variant dark` so `dark:*` utilities follow the app's `.dark` root class instead of device preference.
 - Intentionally skipped the requested ESLint override because it would keep the empty-object lint problem in place and contradict the actual fix.
-- Prisma chapter (in progress)
+- Prisma chapter (completed)
   - `prisma/models/project.prisma` created with `Project` and `ProjectCollaborator` models, required indexes, unique constraints, and cascade relation.
   - `lib/prisma.ts` created with the Prisma client singleton and `DATABASE_URL` branch handling for Accelerate vs. direct Postgres.
   - Prisma 7 schema config corrected to the supported pattern: connection URL is not stored in `schema.prisma`; runtime config is provided via `prisma.config.ts` and the client constructor.
+- Project API routes (completed)
+  - `app/api/projects/route.ts` — list current user's projects and create project records with `ownerId` from Clerk auth, defaulting empty names to `Untitled Project` using Prisma's CUID strategy.
+  - `app/api/projects/[projectId]/route.ts` — rename and delete routes with explicit ownership checks, 401 and 403 enforcement, and correct not-found handling.
+  - `npm run build` passes after route implementation and Prisma schema validation.
+- Editor Home wiring (completed)
+  - `app/editor/page.tsx` now loads owned/shared project lists server-side and passes them to the sidebar.
+  - `lib/project-data.ts` reads the authenticated user and returns the project lists used by the editor home.
+  - `hooks/use-project-dialogs.ts` manages dialog state and real API-backed create/rename/delete flows.
+  - `ProjectSidebar` accepts owned/shared project lists and wires rename/delete actions to the dialogs.
+  - Create flow sends `POST /api/projects`, builds the room ID preview, and routes the user to the created workspace.
+  - Rename flow sends `PATCH /api/projects/[id]` and refreshes on success.
+  - Delete flow sends `DELETE /api/projects/[id]`, redirects when deleting the active workspace, and refreshes otherwise.
+  - `npm run build` passes after the final editor-home wiring.
 
 ## In Progress
 
-- 05-prisma.md
-  - Add or confirm the Prisma project metadata models and resolve the v7 config migration path.
-  - Re-run `prisma validate`, generate the client, apply the migration, and verify the project build.
+- None
 
 ## Next Up
 
-- Complete and verify 05-prisma.md
+- Implement the Liveblocks workspace/session creation and canvas entry once the project list is connected to real project records.
 
 ## Open Questions
 
-- None at this stage; the Prisma v7 config change is the required compatibility fix and it is now applied.
+- None at this stage; editor-home wiring is implemented and verified.
 
 ## Architecture Decisions
 
 - Prisma 7 uses a config-based datasource URL flow instead of schema-level `datasource.url`; migration config is defined in `prisma7.config.ts` and the DB URL is passed through `PrismaClient` runtime options or `prisma.config.ts`.
 - Project schema will use PostgreSQL with the direct adapter path unless a Prisma Accelerate URL is supplied.
+- Project API routes remain server-only and are consumed by the editor home via the client hook.
+- Liveblocks room IDs are aligned with the project ID string in the current editor flow, pending the actual room-token implementation.
 
 ## Session Notes
 
-- Prisma 7 requires `datasource.url` to move out of `schema.prisma` and into `prisma.config.ts` / runtime, which is the current fix being verified.
+- Prisma 7 requires `datasource.url` to move out of `schema.prisma` and into `prisma.config.ts` / runtime.
 - `prisma/models/project.prisma` remains the canonical schema fragment for the `Project` and `ProjectCollaborator` models.
+- The editor project list is intentionally server-loaded to avoid initial client-side fetching.
+- The real project API mutations are now wired into the editor dialog flow and verified with a production build.

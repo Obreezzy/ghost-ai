@@ -24,28 +24,13 @@ export interface ProjectDialogsState {
   submitDelete: () => void
 }
 
-const initialProjects: Project[] = [
-  {
-    id: "project-commerce",
-    name: "Commerce Platform",
-    slug: "commerce-platform",
-    role: "owner",
-  },
-  {
-    id: "project-analytics",
-    name: "Analytics Dashboard",
-    slug: "analytics-dashboard",
-    role: "owner",
-  },
-  {
-    id: "project-collaboration",
-    name: "Team Collaboration",
-    slug: "team-collaboration",
-    role: "collaborator",
-  },
-]
-
-const mockActionDelay = 250
+interface UseProjectDialogsOptions {
+  initialProjects?: Project[]
+  activeProjectId?: string | null
+  onProjectCreated?: (project: Project) => void
+  onProjectRenamed?: (project: Project) => void
+  onProjectDeleted?: (projectId: string, deletedActiveProject: boolean) => void
+}
 
 function slugify(value: string): string {
   return value
@@ -57,11 +42,32 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, "")
 }
 
-function createProjectId(): string {
-  return `project-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+function createRoomSuffix(): string {
+  return Math.random().toString(36).slice(2, 8)
 }
 
-export function useProjectDialogs(): ProjectDialogsState {
+function buildRoomId(name: string): string {
+  const base = slugify(name) || "untitled-project"
+  return `${base}-${createRoomSuffix()}`
+}
+
+function normalizeProject(project: { id: string; name: string; ownerId?: string }): Project {
+  const role = project.ownerId ? "owner" : "collaborator"
+  return {
+    id: project.id,
+    name: project.name,
+    slug: `${slugify(project.name) || "untitled-project"}-${project.id.slice(-6)}`,
+    role,
+  }
+}
+
+export function useProjectDialogs({
+  initialProjects = [],
+  activeProjectId = null,
+  onProjectCreated,
+  onProjectRenamed,
+  onProjectDeleted,
+}: UseProjectDialogsOptions = {}): ProjectDialogsState {
   const [projects, setProjects] = useState<Project[]>(initialProjects)
   const [activeDialog, setActiveDialog] = useState<ProjectDialog>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
@@ -69,7 +75,26 @@ export function useProjectDialogs(): ProjectDialogsState {
   const [isLoading, setIsLoading] = useState(false)
   const pendingActionRef = useRef<number | null>(null)
 
-  const slugPreview = useMemo(() => slugify(formName), [formName])
+  const slugPreview = useMemo(() => buildRoomId(formName), [formName])
+
+  useEffect(() => {
+    setProjects((currentProjects) => {
+      const isSameProjectSet =
+        currentProjects.length === initialProjects.length &&
+        currentProjects.every((project, index) => {
+          const incomingProject = initialProjects[index]
+          return (
+            incomingProject &&
+            project.id === incomingProject.id &&
+            project.name === incomingProject.name &&
+            project.slug === incomingProject.slug &&
+            project.role === incomingProject.role
+          )
+        })
+
+      return isSameProjectSet ? currentProjects : initialProjects
+    })
+  }, [initialProjects])
 
   useEffect(() => {
     return () => {
@@ -90,23 +115,6 @@ export function useProjectDialogs(): ProjectDialogsState {
       if (!open && !isLoading) {
         closeDialog()
       }
-    },
-    [closeDialog, isLoading]
-  )
-
-  const startMockAction = useCallback(
-    (action: () => void) => {
-      if (isLoading || pendingActionRef.current !== null) {
-        return
-      }
-
-      setIsLoading(true)
-      pendingActionRef.current = window.setTimeout(() => {
-        pendingActionRef.current = null
-        action()
-        setIsLoading(false)
-        closeDialog()
-      }, mockActionDelay)
     },
     [closeDialog, isLoading]
   )
@@ -147,57 +155,128 @@ export function useProjectDialogs(): ProjectDialogsState {
     [isLoading]
   )
 
-  const submitCreate = useCallback(() => {
+  const submitCreate = useCallback(async () => {
     const name = formName.trim()
 
     if (!name || isLoading) {
       return
     }
 
-    startMockAction(() => {
-      setProjects((currentProjects) => [
-        ...currentProjects,
-        {
-          id: createProjectId(),
-          name,
-          slug: slugPreview,
-          role: "owner",
-        },
-      ])
-    })
-  }, [formName, isLoading, slugPreview, startMockAction])
+    setIsLoading(true)
 
-  const submitRename = useCallback(() => {
+    try {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create project")
+      }
+
+      const createdProject = (await response.json()) as {
+        id: string
+        name: string
+        ownerId: string
+      }
+
+      const nextProject: Project = {
+        id: createdProject.id,
+        name: createdProject.name,
+        slug: `${slugify(createdProject.name) || "untitled-project"}-${createdProject.id.slice(-6)}`,
+        role: "owner",
+      }
+
+      setProjects((currentProjects) => [nextProject, ...currentProjects])
+      onProjectCreated?.(nextProject)
+      closeDialog()
+    } catch {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(false)
+  }, [closeDialog, formName, isLoading, onProjectCreated])
+
+  const submitRename = useCallback(async () => {
     const name = formName.trim()
 
     if (!name || !selectedProject || isLoading) {
       return
     }
 
-    const projectId = selectedProject.id
-    startMockAction(() => {
-      setProjects((currentProjects) =>
-        currentProjects.map((project) =>
-          project.id === projectId
-            ? { ...project, name, slug: slugPreview }
-            : project
-        )
-      )
-    })
-  }, [formName, isLoading, selectedProject, slugPreview, startMockAction])
+    setIsLoading(true)
 
-  const submitDelete = useCallback(() => {
+    try {
+      const response = await fetch(`/api/projects/${selectedProject.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to rename project")
+      }
+
+      const updatedProject = (await response.json()) as {
+        id: string
+        name: string
+        ownerId: string
+      }
+
+      const nextProject: Project = {
+        id: updatedProject.id,
+        name: updatedProject.name,
+        slug: `${slugify(updatedProject.name) || "untitled-project"}-${updatedProject.id.slice(-6)}`,
+        role: "owner",
+      }
+
+      setProjects((currentProjects) =>
+        currentProjects.map((project) => (project.id === selectedProject.id ? nextProject : project))
+      )
+      onProjectRenamed?.(nextProject)
+      closeDialog()
+    } catch {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(false)
+  }, [closeDialog, formName, isLoading, onProjectRenamed, selectedProject])
+
+  const submitDelete = useCallback(async () => {
     if (!selectedProject || isLoading) {
       return
     }
 
-    const projectId = selectedProject.id
-    startMockAction(() => {
+    setIsLoading(true)
+
+    try {
+      const response = await fetch(`/api/projects/${selectedProject.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete project")
+      }
+
       setProjects((currentProjects) =>
-        currentProjects.filter((project) => project.id !== projectId)
+        currentProjects.filter((project) => project.id !== selectedProject.id)
       )
-    })
-  }, [isLoading, selectedProject, startMockAction])
+      onProjectDeleted?.(selectedProject.id, selectedProject.id === activeProjectId)
+      closeDialog()
+    } catch {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(false)
+  }, [activeProjectId, closeDialog, isLoading, onProjectDeleted, selectedProject])
 
   return {
     projects,
