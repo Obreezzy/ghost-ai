@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- 04-project-dialogs.md (in progress)
+- 05-prisma.md (in progress)
 
 ## Current Goal
 
-- Build the editor home and project dialogs/sidebar actions with mock data only
+- Add project metadata models and configure Prisma 7 correctly for migrations
 
 ## Completed
 
@@ -47,38 +47,31 @@ Update this file whenever the current phase, active feature, or implementation s
 - Fixed the still-valid generated UI lint issue by changing the empty `InputProps` and `TextareaProps` interfaces to exported type aliases preserving the same HTML attribute contracts.
 - Added the Tailwind v4 class-based dark variant in `app/globals.css` via `@custom-variant dark` so `dark:*` utilities follow the app's `.dark` root class instead of device preference.
 - Intentionally skipped the requested ESLint override because it would keep the empty-object lint problem in place and contradict the actual fix.
+- Prisma chapter (in progress)
+  - `prisma/models/project.prisma` created with `Project` and `ProjectCollaborator` models, required indexes, unique constraints, and cascade relation.
+  - `lib/prisma.ts` created with the Prisma client singleton and `DATABASE_URL` branch handling for Accelerate vs. direct Postgres.
+  - Prisma 7 schema config corrected to the supported pattern: connection URL is not stored in `schema.prisma`; runtime config is provided via `prisma.config.ts` and the client constructor.
 
 ## In Progress
 
-- 04-project-dialogs.md
-  - Reuse the existing editor chrome
-  - Add the editor home content and Create Project dialog
-  - Add owned-project rename/delete actions and mobile sidebar dismissal
-  - Keep project data local and mock-only
+- 05-prisma.md
+  - Add or confirm the Prisma project metadata models and resolve the v7 config migration path.
+  - Re-run `prisma validate`, generate the client, apply the migration, and verify the project build.
 
 ## Next Up
 
-- Complete and verify 04-project-dialogs.md
+- Complete and verify 05-prisma.md
 
 ## Open Questions
 
-- ui-context.md describes a richer token vocabulary (--bg-base, text-copy-primary, border-surface-border, --accent-ai, --accent-primary, etc.) that did not exist in globals.css. Partially addressed during the auth UI polish: the ui-context colors were added to globals.css `.dark` and mapped via `@theme inline` (`--color-base`, `--color-surface`, `--color-copy-*`, `--color-brand`, `--color-ai`, `--color-accent-dim`, `--color-state-*`, etc.) on top of the existing shadcn HSL tokens, so both vocabularies are available. The shadcn tokens remain the source for Clerk appearance variables and shadcn components; a future chapter can decide whether to fully migrate to the ui-context names.
-- The sign-in mockup screenshot could not be inspected (the model has no image input). The initial left-panel accent was the AI indigo from ui-context.md, which the user replaced with a black background throughout; the exact visual details of the screenshot beyond that (spacing, copy, iconography) may still differ from the current implementation.
-- `npm run lint` reports pre-existing errors in generated foundation files `components/ui/input.tsx` and `components/ui/textarea.tsx` (empty interface). These are protected third-party components; not modified. Decide in a future chapter whether to fix them.
+- None at this stage; the Prisma v7 config change is the required compatibility fix and it is now applied.
 
 ## Architecture Decisions
 
-- Tailwind v4: shadcn tokens are exposed by mapping the HSL custom properties in globals.css to Tailwind color tokens via `@theme inline`. The v3-style `tailwind.config.ts` is not loaded by Tailwind v4 and is no longer the source of truth for color utilities.
-- Editor chrome floats over the canvas: sidebar uses fixed positioning (top-14, not pushing page content), navbar is a fixed h-14 header mounted above the workspace.
-- New Project, owned-project rename/delete, and mobile outside-tap actions are wired to the local `04-project-dialogs` mock state; no API or persistence is added.
-- Route protection uses Next.js 16 `proxy.ts` (formerly `middleware.ts`) with `clerkMiddleware`, protected-first: only `/` and the sign-in/sign-up env paths are public.
-- Clerk appearance: `dark` base theme from `@clerk/ui/themes` with color variables mapped to the app's shadcn HSL tokens wrapped in `hsl()` (the raw tokens are HSL triplets; utilities use the same pattern, e.g. `.bg-background { background-color: hsl(var(--background)) }`). No hardcoded hex values in app code.
-- Auth pages live in an `app/(auth)` route group so they share a two-panel layout without adding a URL segment; public routes stay `/sign-in` and `/sign-up`.
+- Prisma 7 uses a config-based datasource URL flow instead of schema-level `datasource.url`; migration config is defined in `prisma7.config.ts` and the DB URL is passed through `PrismaClient` runtime options or `prisma.config.ts`.
+- Project schema will use PostgreSQL with the direct adapter path unless a Prisma Accelerate URL is supplied.
 
 ## Session Notes
 
-- `next build` was previously blocked because `next/font/google` fetches Geist woff2 from fonts.gstatic.com, which timed out. During this session network access recovered, so the font fetch completed and `npm run build` passes. Re-check if the network blocks return.
-- npm registry access is flaky: HEAD/packument requests work but large tarball downloads and full `npm install` of `@clerk/ui` stall (its transitive tree pulls react-native, @solana/web3.js, etc., which are not in the offline cache). Workaround for this unit: `@clerk/ui@1.34.0` was installed by downloading `ui-1.34.0.tgz` via ranged `curl` resume and extracting it into `node_modules/@clerk/ui`; `"@clerk/ui": "^1.34.0"` was added to package.json manually.
-- LOCKFILE RECONCILED (2026-09-23): an `npm install --no-audit --no-fund` ran to completion after the network recovered long enough to fetch the full `@clerk/ui` tree. `package-lock.json` now contains `@clerk/ui@1.34.0` and its transitive deps (react-native, @solana/*, @emotion/*, input-otp, qrcode.react, core-js, etc.). Verification after install: `npx tsc --noEmit` passes and `npm run build` passes (Proxy detected, routes `/`, `/editor`, `/sign-in`, `/sign-up`). Also note: early retries of this install failed with ECONNRESET (network reset) and Windows EPERM cleanup errors while the dev server held file locks; the successful run eventually completed in ~8m and also re-resolved some existing entries (package-lock shows 5333 insertions / 242 deletions vs. the pre-auth baseline).
-- Runtime error fix (2026-09-23): the Clerk `<SignIn/>`/`<SignUp/>` components threw "is not configured correctly" because `/sign-in` and `/sign-up` were plain routes, not catch-alls. Fixed by nesting `[[...rest]]` under each page folder (`app/(auth)/sign-in/[[...rest]]/page.tsx`, same for sign-up). The proxy already made `/sign-in(.*)`/`/sign-up(.*)` public. Verified: `npm run build` passes; dev log shows Clerk's internal `catchall_check` returning 200; `/sign-in`, `/sign-in/forgot-password`, `/sign-up` → 200, `/` and `/editor` → 307 to `/sign-in`. Restarting the dev server was required for the new route folder to be picked up (Turbopack doesn't always hot-add route segments), so the stale server was restarted on :3000.
-- The Clerk SDK in this project (v7.9.5) is Core 3: `auth()` from `@clerk/nextjs/server` returns `isAuthenticated`, and `clerkMiddleware` handlers receive an `auth` object with `auth.protect()` (not `auth().protect()`). `UserButton` no longer accepts `afterSignOutUrl` — the default sign-out menu is used.
+- Prisma 7 requires `datasource.url` to move out of `schema.prisma` and into `prisma.config.ts` / runtime, which is the current fix being verified.
+- `prisma/models/project.prisma` remains the canonical schema fragment for the `Project` and `ProjectCollaborator` models.
